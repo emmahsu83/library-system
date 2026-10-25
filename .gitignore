@@ -2,3 +2,10 @@
 *.out
 .vscode/
 library
+.DS_Store
+*.dev
+*.layout
+*.exe
+*.o
+Makefile.win
+Objects/
