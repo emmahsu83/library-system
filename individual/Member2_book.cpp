@@ -3,7 +3,7 @@
 // Module  : Book (Member 2)
 // Course  : PRG2203 Programming Techniques - Coursework 3
 // Author  : [YOON BON SHE OO and I26042515]
-// Date    : [dd/mm/yyyy]
+// Date    : [14/11/2026]
 // Compile : g++ -std=c++11 Member2_Book.cpp -o book
 // Functions: isValidIsbn, addBook, findBookByTitle
 // ============================================================
