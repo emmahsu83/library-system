@@ -1,9 +1,8 @@
 // final_main.cpp  -  FINAL merged program (Member 1 merges)
-// HOW TO MERGE: paste each member's functions into the marked places at the bottom.
-
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 using namespace std;
 
 // ---------- constants ----------
@@ -320,7 +319,6 @@ int main() {
 // MEMBER 1 FUNCTIONS (login and input checking)
 // =====================================================================
 
-// remove spaces at the start and end of a text
 string trimText(string text) {
     int start = 0;
     int end = (int)text.length() - 1;
@@ -436,7 +434,7 @@ int loginAdmin(const Admin admins[], int adminCount, string userId, string passw
 // =====================================================================
 // MEMBER 2 FUNCTIONS (books): 
 //   isValidIsbn, addBook, findBookByTitle
-// Remove spaces and tabs from the beginning and end.
+
 string bookTrimText(string text)
 {
 int start = 0;
@@ -542,18 +540,292 @@ return true;}
 
 
 // =====================================================================
-// MEMBER 3 FUNCTIONS (borrowers): paste here
-//   isValidContact, addBorrower, findBorrowerByName
+// MEMBER 3 FUNCTIONS (borrowers): 
+//   isValidContact, addBorrower, findBorrowerByName// Remove spaces from beginning and end
+string borrowerTrimText(string text)
+{
+int start = 0;
+int end = (int)text.length() - 1;
+
+while (start <= end && text[start] == ' ')
+    start++;
+
+while (end >= start && text[end] == ' ')
+    end--;
+
+return text.substr(start, end - start + 1);}
+
+// Validate name and address
+bool isValidBorrowerText(string text)
+{
+text = borrowerTrimText(text);
+
+return !text.empty() &&
+       text.find('|') == string::npos;}
+
+// Validate contact number
+bool isValidContact(string contact)
+{
+if (contact.length() < 9 ||
+contact.length() > 15)
+return false;
+
+for (int i = 0; i < (int)contact.length(); i++) {
+
+    char ch = contact[i];
+
+    if (ch >= '0' && ch <= '9')
+        continue;
+
+    else if (ch == '-')
+        continue;
+
+    else if (ch == '+' && i == 0)
+        continue;
+
+    else
+        return false;
+}
+
+return true;}
+
+// Find borrower by name
+int findBorrowerByName(
+const Borrower borrowers[],
+int borrowerCount,
+string name)
+{
+for (int i = 0; i < borrowerCount; i++) {
+
+    if (borrowers[i].name == name)
+        return i;
+}
+
+return -1;}
+
+// Add borrower
+bool addBorrower(
+Borrower borrowers[],
+int &borrowerCount,
+string name,
+string address,
+string contact)
+{
+if (borrowerCount >= MAX_BORROWERS)
+return false;
+
+name = borrowerTrimText(name);
+address = borrowerTrimText(address);
+contact = borrowerTrimText(contact);
+
+if (!isValidBorrowerText(name) ||
+    !isValidBorrowerText(address) ||
+    !isValidContact(contact))
+    return false;
+
+if (findBorrowerByName(
+    borrowers, borrowerCount, name) != -1)
+    return false;
+
+borrowers[borrowerCount].name = name;
+borrowers[borrowerCount].address = address;
+borrowers[borrowerCount].contact = contact;
+
+borrowers[borrowerCount].borrowedCount = 0;
+
+borrowerCount++;
+
+return true;}
 // =====================================================================
 
 
 // =====================================================================
-// MEMBER 4 FUNCTIONS (borrow and return): paste here
+// MEMBER 4 FUNCTIONS (borrow and return): 
 //   borrowBook, returnBook
+// Looks in one borrower's borrowedTitles[] for a title.
+// Returns the index (0 .. borrowedCount-1) or -1 if not held.
+int findLoanIndex(const Borrower &borrower, string title)
+{
+for (int i = 0; i < borrower.borrowedCount; i++)
+{
+if (borrower.borrowedTitles[i] == title)
+{
+return i;
+}
+}
+return -1;
+}
+
+// Lets an existing borrower borrow an available book.
+// Returns RESULT_OK on success, otherwise one of the ERR_ codes.
+// Nothing is changed unless every check passes.
+int borrowBook(Borrower borrowers[], int borrowerCount, Book books[], int bookCount, string borrowerName, string bookTitle)
+{
+// 1. Borrower must exist
+int b = findBorrowerByName(borrowers, borrowerCount, borrowerName);
+if (b == -1)
+{
+return ERR_BORROWER_NOT_FOUND;
+}
+// 2. Book must exist
+int k = findBookByTitle(books, bookCount, bookTitle);
+if (k == -1)
+{
+return ERR_BOOK_NOT_FOUND;
+}
+// 3. At least one copy must be available
+if (books[k].copiesAvailable <= 0)
+{
+return ERR_NO_COPIES;
+}
+// 4. Borrower must be under the loan limit
+if (borrowers[b].borrowedCount >= MAX_LOANS)
+{
+return ERR_LOAN_LIMIT;
+}
+// 5. Borrower must not already hold this title
+if (findLoanIndex(borrowers[b], books[k].title) != -1)
+{
+return ERR_ALREADY_HAS_BOOK;
+}
+// All checks passed: update inventory and borrower record
+books[k].copiesAvailable--;
+books[k].copiesCheckedOut++;
+borrowers[b].borrowedTitles[borrowers[b].borrowedCount] = books[k].title;
+borrowers[b].borrowedCount++;
+
+return RESULT_OK;}
+
+// Lets a borrower return a book they currently hold.
+// Returns RESULT_OK on success, otherwise one of the ERR_ codes
+// (it can also return ERR_NOT_BORROWED).
+int returnBook(Borrower borrowers[], int borrowerCount, Book books[], int bookCount, string borrowerName, string bookTitle)
+{
+// 1. Borrower must exist
+int b = findBorrowerByName(borrowers, borrowerCount, borrowerName);
+if (b == -1)
+{
+return ERR_BORROWER_NOT_FOUND;
+}
+// 2. Book must exist
+int k = findBookByTitle(books, bookCount, bookTitle);
+if (k == -1)
+{
+return ERR_BOOK_NOT_FOUND;
+}
+// 3. Borrower must actually hold this title
+int loanIndex = findLoanIndex(borrowers[b], books[k].title);
+if (loanIndex == -1)
+{
+return ERR_NOT_BORROWED;
+}
+
+// Remove the title: shift everything after it one place to the left
+for (int i = loanIndex; i < borrowers[b].borrowedCount - 1; i++)
+{
+    borrowers[b].borrowedTitles[i] = borrowers[b].borrowedTitles[i + 1];
+}
+// Clear the last used slot and reduce the counter
+borrowers[b].borrowedTitles[borrowers[b].borrowedCount - 1] = "";
+borrowers[b].borrowedCount--;
+
+// Update the inventory
+books[k].copiesAvailable++;
+books[k].copiesCheckedOut--;
+
+return RESULT_OK;}
 // =====================================================================
 
 
 // =====================================================================
-// MEMBER 5 FUNCTIONS (files): paste here
+// MEMBER 5 FUNCTIONS (files): 
 //   saveAdmins, loadAdmins, saveBooks, loadBooks, saveBorrowers, loadBorrowers
+for (int j = 0; j < borrowers[i].borrowedCount; j++) {
+
+        if (borrowers[i].borrowedTitles[j].find('|') != string::npos) {
+            outFile.close();
+            return false;
+        }
+
+        outFile << "|" << borrowers[i].borrowedTitles[j];
+    }
+
+    outFile << endl;
+}
+
+outFile.close();
+return true;}
+
+// 6. Load Borrower Information
+bool loadBorrowers(Borrower borrowers[], int &borrowerCount) {
+ifstream inFile("borrowers.txt");
+borrowerCount = 0;
+
+if (!inFile)
+    return true;
+
+string line;
+
+while (getline(inFile, line)) {
+    if (borrowerCount >= MAX_BORROWERS) {
+        inFile.close();
+        return false;
+    }
+
+    stringstream ss(line);
+    string name, address, contact, countText;
+
+    if (!getline(ss, name, '|') ||
+        !getline(ss, address, '|') ||
+        !getline(ss, contact, '|') ||
+        !getline(ss, countText, '|')) {
+        inFile.close();
+        return false;
+    }
+
+    int count;
+
+    try {
+        size_t pos;
+        count = stoi(countText, &pos);
+
+        if (pos != countText.size() ||
+            count < 0 || count > MAX_LOANS) {
+            inFile.close();
+            return false;
+        }
+    }
+    catch (...) {
+        inFile.close();
+        return false;
+    }
+
+    borrowers[borrowerCount].name = name;
+    borrowers[borrowerCount].address = address;
+    borrowers[borrowerCount].contact = contact;
+    borrowers[borrowerCount].borrowedCount = count;
+
+    for (int j = 0; j < count; j++) {
+        string title;
+
+        if (!getline(ss, title, '|')) {
+            inFile.close();
+            return false;
+        }
+
+        borrowers[borrowerCount].borrowedTitles[j] = title;
+    }
+
+    // Check for extra fields
+    string extra;
+    if (getline(ss, extra, '|')) {
+        inFile.close();
+        return false;
+    }
+
+    borrowerCount++;
+}
+
+inFile.close();
+return true;}
 // =====================================================================
