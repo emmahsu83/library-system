@@ -1,3 +1,12 @@
+// ============================================================
+// File      : Member5_Files.cpp
+// Module    : Files (Member 5)
+// Course    : PRG2203 Programming Techniques - Coursework 3
+// Author    : [PAN THITSAR OO AND I26042516]
+// Date      : [13/11/2026]
+// Compile   : g++ -std=c++11 Member5_Files.cpp -o files
+// Functions : Save and load functions for admins, books, and borrowers
+// ============================================================
 #include <iostream>
 #include <fstream>
 #include <string>
