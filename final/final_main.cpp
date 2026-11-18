@@ -434,8 +434,110 @@ int loginAdmin(const Admin admins[], int adminCount, string userId, string passw
 }
 
 // =====================================================================
-// MEMBER 2 FUNCTIONS (books): paste here
+// MEMBER 2 FUNCTIONS (books): 
 //   isValidIsbn, addBook, findBookByTitle
+// Remove spaces and tabs from the beginning and end.
+string bookTrimText(string text)
+{
+int start = 0;
+int end = (int)text.length() - 1;
+
+while (start <= end && (text[start] == ' ' || text[start] == '\t')) {
+    start++;
+}
+while (end >= start && (text[end] == ' ' || text[end] == '\t')) {
+    end--;
+}
+
+return text.substr(start, end - start + 1);}
+
+// Text fields must not be empty and must not contain the file separator '|'.
+bool isValidBookText(string text)
+{
+text = bookTrimText(text);
+return !text.empty() && text.find('|') == string::npos;
+}
+
+// Change English capital letters to lowercase for case-insensitive searching.
+string bookToLowerText(string text)
+{
+for (int i = 0; i < (int)text.length(); i++) {
+if (text[i] >= 'A' && text[i] <= 'Z') {
+text[i] = text[i] - 'A' + 'a';
+}
+}
+return text;
+}
+
+// Check that the ISBN contains exactly 10 or 13 digits.
+bool isValidIsbn(string isbn)
+{
+if (isbn.length() != 10 && isbn.length() != 13) {
+return false;
+}
+
+for (int i = 0; i < (int)isbn.length(); i++) {
+    if (isbn[i] < '0' || isbn[i] > '9') {
+        return false;
+    }
+}
+return true;}
+
+// Find a book by title without considering capital or lowercase letters.
+// Return its array index, or -1 when no matching title exists.
+int findBookByTitle(const Book books[], int bookCount, string title)
+{
+title = bookToLowerText(bookTrimText(title));
+
+for (int i = 0; i < bookCount; i++) {
+    if (bookToLowerText(bookTrimText(books[i].title)) == title) {
+        return i;
+    }
+}
+return -1;}
+
+// Validate the details and add one book to the array.
+bool addBook(Book books[], int &bookCount, string title, string author,
+string isbn, int copies)
+{
+if (bookCount < 0 || bookCount >= MAX_BOOKS) {
+return false;
+}
+
+title = bookTrimText(title);
+author = bookTrimText(author);
+isbn = bookTrimText(isbn);
+
+if (!isValidBookText(title) || !isValidBookText(author)) {
+    return false;
+}
+
+if (!isValidIsbn(isbn)) {
+    return false;
+}
+
+if (copies < 1) {
+    return false;
+}
+
+// Reject a book if its title or ISBN is already in the inventory.
+if (findBookByTitle(books, bookCount, title) != -1) {
+    return false;
+}
+for (int i = 0; i < bookCount; i++) {
+    if (books[i].isbn == isbn) {
+        return false;
+    }
+}
+
+books[bookCount].title = title;
+books[bookCount].author = author;
+books[bookCount].isbn = isbn;
+books[bookCount].copiesAvailable = copies;
+books[bookCount].copiesCheckedOut = 0;
+
+bookCount++;
+return true;}
 // =====================================================================
 
 
